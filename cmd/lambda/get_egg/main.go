@@ -58,9 +58,15 @@ func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (event
 	// Retrieve the egg from DynamoDB
 	egg, err := eggRepo.GetEgg(ctx, owner)
 	if err != nil {
+		println("DynamoDB Error:", err.Error())
+		errorMsg := map[string]string{
+			"error":   "Egg not found",
+			"details": err.Error(),
+		}
+		errorBody, _ := json.Marshal(errorMsg)
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: 404,
-			Body:       `{"error": "Egg not found"}`,
+			Body:       string(errorBody),
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
@@ -70,9 +76,15 @@ func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (event
 		CiphertextBlob: egg.EncryptedDataKey,
 	})
 	if err != nil {
+		println("KMS Decrypt Error:", err.Error())
+		errorMsg := map[string]string{
+			"error":   "Failed to decrypt data key",
+			"details": err.Error(),
+		}
+		errorBody, _ := json.Marshal(errorMsg)
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: 500,
-			Body:       `{"error": "Failed to decrypt data key"}`,
+			Body:       string(errorBody),
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
@@ -80,9 +92,15 @@ func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (event
 	// Decrypt the ciphertext using AES-256-GCM with the plaintext data key
 	plaintextBytes, err := crypto.DecryptWithAESGCM(egg.Ciphertext, decryptResp.Plaintext)
 	if err != nil {
+		println("AES Decrypt Error:", err.Error())
+		errorMsg := map[string]string{
+			"error":   "Failed to decrypt secret",
+			"details": err.Error(),
+		}
+		errorBody, _ := json.Marshal(errorMsg)
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: 500,
-			Body:       `{"error": "Failed to decrypt secret"}`,
+			Body:       string(errorBody),
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}

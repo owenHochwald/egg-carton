@@ -15,11 +15,11 @@ import (
 // CreatedAt,S,ISO Timestamp,2026-02-15T08:00:00Z
 
 type Egg struct {
-	Owner            string `dynamodbav:"owner"`
-	SecretID         string `dynamodbav:"secret_id"`
-	Ciphertext       []byte `dynamodbav:"ciphertext"`
-	EncryptedDataKey []byte `dynamodbav:"encrypted_data_key"`
-	CreatedAt        string `dynamodbav:"created_at"`
+	Owner            string `dynamodbav:"Owner"`
+	SecretID         string `dynamodbav:"SecretID"`
+	Ciphertext       []byte `dynamodbav:"Ciphertext"`
+	EncryptedDataKey []byte `dynamodbav:"EncryptedDataKey"`
+	CreatedAt        string `dynamodbav:"CreatedAt"`
 }
 
 // GetKey returns the composite primary key of the egg in a format that can be
@@ -33,7 +33,7 @@ func (e Egg) GetKey() map[string]types.AttributeValue {
 	if err != nil {
 		panic(err)
 	}
-	return map[string]types.AttributeValue{"owner": owner, "secret_id": secretID}
+	return map[string]types.AttributeValue{"Owner": owner, "SecretID": secretID}
 }
 
 // String returns the owner, secret ID, and created at timestamp of the egg.

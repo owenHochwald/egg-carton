@@ -57,7 +57,7 @@ func init() {
 func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
 	// Log the raw request body for debugging
 	println("Request Body:", request.Body)
-	
+
 	var req PutEggRequest
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
 		// Include the actual error in the response for debugging

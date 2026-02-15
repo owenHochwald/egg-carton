@@ -50,9 +50,15 @@ func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (event
 
 	// Delete the egg from DynamoDB
 	if err := eggRepo.BreakEgg(ctx, owner, secretID); err != nil {
+		println("DynamoDB Delete Error:", err.Error())
+		errorMsg := map[string]string{
+			"error":   "Failed to delete egg",
+			"details": err.Error(),
+		}
+		errorBody, _ := json.Marshal(errorMsg)
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: 500,
-			Body:       `{"error": "Failed to delete egg"}`,
+			Body:       string(errorBody),
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
