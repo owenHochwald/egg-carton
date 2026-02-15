@@ -91,7 +91,11 @@ resource "aws_iam_policy" "lambda_dynamodb_policy" {
           "dynamodb:DeleteItem",
           "dynamodb:Query",
           "dynamodb:Scan",
-          "dynamodb:ExecuteStatement"
+          "dynamodb:ExecuteStatement",
+          "dynamodb:PartiQLInsert",
+          "dynamodb:PartiQLSelect",
+          "dynamodb:PartiQLUpdate",
+          "dynamodb:PartiQLDelete"
         ]
         Resource = aws_dynamodb_table.egg_carton.arn
       }
@@ -246,21 +250,24 @@ resource "aws_cloudwatch_log_group" "api_gw" {
 
 # API Gateway Integrations
 resource "aws_apigatewayv2_integration" "put_egg" {
-  api_id           = aws_apigatewayv2_api.eggcarton_api.id
-  integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.put_egg.invoke_arn
+  api_id             = aws_apigatewayv2_api.eggcarton_api.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.put_egg.invoke_arn
+  payload_format_version = "2.0"
 }
 
 resource "aws_apigatewayv2_integration" "get_egg" {
-  api_id           = aws_apigatewayv2_api.eggcarton_api.id
-  integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.get_egg.invoke_arn
+  api_id             = aws_apigatewayv2_api.eggcarton_api.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.get_egg.invoke_arn
+  payload_format_version = "2.0"
 }
 
 resource "aws_apigatewayv2_integration" "break_egg" {
-  api_id           = aws_apigatewayv2_api.eggcarton_api.id
-  integration_type = "AWS_PROXY"
-  integration_uri  = aws_lambda_function.break_egg.invoke_arn
+  api_id             = aws_apigatewayv2_api.eggcarton_api.id
+  integration_type   = "AWS_PROXY"
+  integration_uri    = aws_lambda_function.break_egg.invoke_arn
+  payload_format_version = "2.0"
 }
 
 # API Gateway Routes

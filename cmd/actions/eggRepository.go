@@ -55,7 +55,7 @@ func (r EggRepository) PutEgg(ctx context.Context, egg Egg) error {
 	}
 	_, err = r.DynamoDbClient.ExecuteStatement(ctx, &dynamodb.ExecuteStatementInput{
 		Statement: aws.String(
-			fmt.Sprintf("PUT INTO \"%v\" VALUE {'Owner': ?, 'SecretID': ?, 'Ciphertext': ?, 'EncryptedDataKey': ?, 'CreatedAt': ?}",
+			fmt.Sprintf("INSERT INTO \"%v\" VALUE {'Owner': ?, 'SecretID': ?, 'Ciphertext': ?, 'EncryptedDataKey': ?, 'CreatedAt': ?}",
 				r.TableName)),
 		Parameters: params,
 	})

@@ -18,7 +18,7 @@ import (
 type PutEggRequest struct {
 	Owner     string `json:"owner"`
 	SecretID  string `json:"secret_id"`
-	Plaintext string `json:"plaintext"` // The secret to encrypt
+	Plaintext string `json:"plaintext"`
 }
 
 type PutEggResponse struct {
@@ -55,11 +55,21 @@ func init() {
 }
 
 func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	// Log the raw request body for debugging
+	println("Request Body:", request.Body)
+	
 	var req PutEggRequest
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
+		// Include the actual error in the response for debugging
+		errorMsg := map[string]string{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+			"body":    request.Body,
+		}
+		errorBody, _ := json.Marshal(errorMsg)
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: 400,
-			Body:       `{"error": "Invalid request body"}`,
+			Body:       string(errorBody),
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
@@ -108,9 +118,16 @@ func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (event
 
 	// Store in DynamoDB
 	if err := eggRepo.PutEgg(ctx, egg); err != nil {
+		// Log the actual error for debugging
+		println("DynamoDB Error:", err.Error())
+		errorMsg := map[string]string{
+			"error":   "Failed to store egg",
+			"details": err.Error(),
+		}
+		errorBody, _ := json.Marshal(errorMsg)
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: 500,
-			Body:       `{"error": "Failed to store egg"}`,
+			Body:       string(errorBody),
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
