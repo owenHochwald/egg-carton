@@ -16,9 +16,9 @@ import (
 )
 
 type PutEggRequest struct {
-	Owner      string `json:"owner"`
-	SecretID   string `json:"secret_id"`
-	Plaintext  string `json:"plaintext"` // The secret to encrypt
+	Owner     string `json:"owner"`
+	SecretID  string `json:"secret_id"`
+	Plaintext string `json:"plaintext"` // The secret to encrypt
 }
 
 type PutEggResponse struct {
@@ -29,9 +29,9 @@ type PutEggResponse struct {
 }
 
 var (
-	eggRepo    actions.EggRepository
-	kmsClient  *kms.Client
-	kmsKeyID   string
+	eggRepo   actions.EggRepository
+	kmsClient *kms.Client
+	kmsKeyID  string
 )
 
 func init() {
