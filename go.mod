@@ -4,7 +4,10 @@ go 1.25.4
 
 require github.com/aws/aws-sdk-go-v2 v1.41.1
 
-require github.com/aws/aws-sdk-go-v2/service/dynamodbstreams v1.32.10 // indirect
+require (
+	github.com/aws/aws-sdk-go-v2/service/dynamodbstreams v1.32.10 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/endpoint-discovery v1.11.17 // indirect
+)
 
 require (
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.4 // indirect
