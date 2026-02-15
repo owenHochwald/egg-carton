@@ -5,3 +5,6 @@ terraform.tfstate
 terraform.tfstate.backup
 .gitignore
 .env
+lambda/break_egg.zip
+lambda/get_egg.zip
+lambda/put_egg.zip
