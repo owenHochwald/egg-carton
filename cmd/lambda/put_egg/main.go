@@ -16,7 +16,6 @@ import (
 )
 
 type PutEggRequest struct {
-	Owner     string `json:"owner"`
 	SecretID  string `json:"secret_id"`
 	Plaintext string `json:"plaintext"`
 }
@@ -55,30 +54,31 @@ func init() {
 }
 
 func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
-	// Log the raw request body for debugging
-	println("Request Body:", request.Body)
+	// Extract user ID from JWT claims (API Gateway validates the token and passes claims)
+	claims := request.RequestContext.Authorizer.JWT.Claims
+	owner := claims["sub"]
+	if owner == "" {
+		return events.APIGatewayV2HTTPResponse{
+			StatusCode: 401,
+			Body:       `{"error": "Unauthorized: user ID not found in token"}`,
+			Headers:    map[string]string{"Content-Type": "application/json"},
+		}, nil
+	}
 
 	var req PutEggRequest
 	if err := json.Unmarshal([]byte(request.Body), &req); err != nil {
-		// Include the actual error in the response for debugging
-		errorMsg := map[string]string{
-			"error":   "Invalid request body",
-			"details": err.Error(),
-			"body":    request.Body,
-		}
-		errorBody, _ := json.Marshal(errorMsg)
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: 400,
-			Body:       string(errorBody),
+			Body:       `{"error": "Invalid request body"}`,
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
 
 	// Validate input
-	if req.Owner == "" || req.SecretID == "" || req.Plaintext == "" {
+	if req.SecretID == "" || req.Plaintext == "" {
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: 400,
-			Body:       `{"error": "owner, secret_id, and plaintext are required"}`,
+			Body:       `{"error": "secret_id and plaintext are required"}`,
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
@@ -106,10 +106,10 @@ func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (event
 		}, nil
 	}
 
-	// Create the egg
+	// Create the egg with authenticated user as owner
 	createdAt := time.Now().Format(time.RFC3339)
 	egg := actions.Egg{
-		Owner:            req.Owner,
+		Owner:            owner, // From JWT token
 		SecretID:         req.SecretID,
 		Ciphertext:       ciphertext,
 		EncryptedDataKey: dataKeyResp.CiphertextBlob,
@@ -118,16 +118,9 @@ func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (event
 
 	// Store in DynamoDB
 	if err := eggRepo.PutEgg(ctx, egg); err != nil {
-		// Log the actual error for debugging
-		println("DynamoDB Error:", err.Error())
-		errorMsg := map[string]string{
-			"error":   "Failed to store egg",
-			"details": err.Error(),
-		}
-		errorBody, _ := json.Marshal(errorMsg)
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: 500,
-			Body:       string(errorBody),
+			Body:       `{"error": "Failed to store egg"}`,
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
@@ -135,7 +128,7 @@ func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (event
 	// Return success response
 	response := PutEggResponse{
 		Message:   "Egg stored successfully",
-		Owner:     req.Owner,
+		Owner:     owner,
 		SecretID:  req.SecretID,
 		CreatedAt: createdAt,
 	}
