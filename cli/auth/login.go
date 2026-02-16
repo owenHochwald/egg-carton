@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"net/url"
 )
 
 // PKCEChallenge holds the PKCE code verifier and challenge
@@ -13,44 +14,44 @@ type PKCEChallenge struct {
 	Challenge string
 }
 
-// TODO: Implement GeneratePKCEChallenge
 // Should generate a random code verifier and compute the SHA256 challenge
 func GeneratePKCEChallenge() (*PKCEChallenge, error) {
-	// TODO:
-	// 1. Generate 32 random bytes using crypto/rand
-	// 2. Base64URL encode them (no padding) to create verifier
-	// 3. SHA256 hash the verifier
-	// 4. Base64URL encode the hash (no padding) to create challenge
-	// 5. Return PKCEChallenge struct
-
-	// Hint: Use base64.RawURLEncoding (no padding)
-	// Verifier should be 43-128 characters
-
-	verifier := make([]byte, 32)
-	if _, err := rand.Read(verifier); err != nil {
+	// generate random bytes
+	randomBytes := make([]byte, 32)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
 		return nil, fmt.Errorf("failed to generate random bytes: %w", err)
 	}
+	// encode as an unpadded string
+	verifier := base64.RawURLEncoding.EncodeToString(randomBytes)
+	// SHA256 hash the verifier
+	hasher := sha256.New()
+	hasher.Write([]byte(verifier))
+	// create challenge
+	challenge := base64.RawURLEncoding.EncodeToString(hasher.Sum(nil))
 
-	// TODO: Implement the rest
-	_ = sha256.New()
-	_ = base64.RawURLEncoding
+	return &PKCEChallenge{
+		Verifier:  verifier,
+		Challenge: challenge,
+	}, nil
 
-	return nil, fmt.Errorf("not implemented")
 }
 
-// TODO: Implement BuildAuthorizationURL
 // Should build the complete OAuth authorization URL with PKCE parameters
 func BuildAuthorizationURL(authURL, clientID, redirectURI, codeChallenge string) string {
-	// TODO:
-	// Build URL with these query parameters:
-	// - client_id
-	// - response_type=code
-	// - scope=openid email profile
-	// - redirect_uri
-	// - code_challenge
-	// - code_challenge_method=S256
+
+	// "https://eggcarton-auth-uqhqvdut.auth.us-west-1.amazoncognito.com/oauth2/
+	// authorize?client_id=1vccvf2hh5amna78lurbn9bjhi&response_type=token&scope=email+openid+profile&redirect_uri=https://oauth.pstmn.io/v1/callback"
+	params := url.Values{}
+	params.Set("client_id", clientID)
+	params.Set("response_type", "code")
+	params.Set("scope", "openid email profile")
+	params.Set("redirect_uri", redirectURI)
+	params.Set("code_challenge", codeChallenge)
+	params.Set("code_challenge_method", "S256")
 
 	// Hint: Use url.Values or fmt.Sprintf
 
-	return ""
+	// return ""
+	return fmt.Sprintf("%s?%s", authURL, params.Encode())
 }
