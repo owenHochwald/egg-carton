@@ -2,7 +2,10 @@ module github.com/owenHochwald/egg-carton
 
 go 1.25.4
 
-require github.com/aws/aws-sdk-go-v2 v1.41.1
+require (
+	github.com/aws/aws-sdk-go-v2 v1.41.1
+	github.com/golang-jwt/jwt/v5 v5.3.1
+)
 
 require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodbstreams v1.32.10 // indirect

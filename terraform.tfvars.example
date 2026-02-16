@@ -1,0 +1,23 @@
+# Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in your actual values
+# NEVER commit terraform.tfvars to version control!
+
+# AWS Configuration
+aws_region = "us-west-1"
+
+# Google OAuth 2.0 Credentials
+# Obtain these from: https://console.cloud.google.com/apis/credentials
+# 
+# Setup Instructions:
+# 1. Go to Google Cloud Console
+# 2. Create a new OAuth 2.0 Client ID (Web application)
+# 3. Add authorized redirect URIs:
+#    - https://<your-cognito-domain>.auth.us-west-1.amazoncognito.com/oauth2/idpresponse
+#    (You'll get the actual domain after first terraform apply)
+# 4. Copy the Client ID and Client Secret below
+
+google_client_id     = "your-google-client-id.apps.googleusercontent.com"
+google_client_secret = "your-google-client-secret"
+
+# Chrome Extension ID (optional, add when extension is published)
+# chrome_extension_id = "abcdefghijklmnopqrstuvwxyz123456"

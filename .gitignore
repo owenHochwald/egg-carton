@@ -1,10 +1,63 @@
+# Terraform
 .terraform/
 .terraform.lock.hcl
 terraform.tfstate
-.gitignore
 terraform.tfstate.backup
-.gitignore
+terraform.tfstate.*
+
+# Terraform variables (sensitive)
+terraform.tfvars
+*.tfvars
+!terraform.tfvars.example
+
+# Environment variables
 .env
+.env.local
+.env.*.local
+
+# Lambda artifacts
 lambda/break_egg.zip
 lambda/get_egg.zip
 lambda/put_egg.zip
+lambda/*.zip
+bootstrap
+
+docs/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+bin/
+vendor/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Secrets and keys
+*.pem
+*.key
+secrets/
+credentials/
+
+# Logs
+*.log
+logs/
+
+# Crash log files
+crash.log
+crash.*.log
+
+# OS
+Thumbs.db
+CLAUDE.md

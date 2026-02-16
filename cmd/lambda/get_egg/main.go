@@ -46,11 +46,32 @@ func init() {
 }
 
 func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	// Extract user ID from JWT claims
+	claims := request.RequestContext.Authorizer.JWT.Claims
+	authenticatedUser := claims["sub"]
+	if authenticatedUser == "" {
+		return events.APIGatewayV2HTTPResponse{
+			StatusCode: 401,
+			Body:       `{"error": "Unauthorized: user ID not found in token"}`,
+			Headers:    map[string]string{"Content-Type": "application/json"},
+		}, nil
+	}
+
+	// Get owner from path parameter
 	owner := request.PathParameters["owner"]
 	if owner == "" {
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: 400,
 			Body:       `{"error": "owner parameter is required"}`,
+			Headers:    map[string]string{"Content-Type": "application/json"},
+		}, nil
+	}
+
+	// Ensure user can only access their own secrets
+	if owner != authenticatedUser {
+		return events.APIGatewayV2HTTPResponse{
+			StatusCode: 403,
+			Body:       `{"error": "Forbidden: you can only access your own secrets"}`,
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
