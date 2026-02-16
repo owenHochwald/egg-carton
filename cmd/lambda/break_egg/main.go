@@ -37,6 +37,18 @@ func init() {
 }
 
 func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (events.APIGatewayV2HTTPResponse, error) {
+	// Extract user ID from JWT claims
+	claims := request.RequestContext.Authorizer.JWT.Claims
+	authenticatedUser := claims["sub"]
+	if authenticatedUser == "" {
+		return events.APIGatewayV2HTTPResponse{
+			StatusCode: 401,
+			Body:       `{"error": "Unauthorized: user ID not found in token"}`,
+			Headers:    map[string]string{"Content-Type": "application/json"},
+		}, nil
+	}
+
+	// Get parameters from path
 	owner := request.PathParameters["owner"]
 	secretID := request.PathParameters["secretId"]
 
@@ -44,6 +56,15 @@ func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (event
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: 400,
 			Body:       `{"error": "owner and secretId parameters are required"}`,
+			Headers:    map[string]string{"Content-Type": "application/json"},
+		}, nil
+	}
+
+	// Ensure user can only delete their own secrets
+	if owner != authenticatedUser {
+		return events.APIGatewayV2HTTPResponse{
+			StatusCode: 403,
+			Body:       `{"error": "Forbidden: you can only delete your own secrets"}`,
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
