@@ -141,7 +141,6 @@ resource "aws_iam_role_policy_attachment" "lambda_kms" {
   policy_arn = aws_iam_policy.lambda_kms_policy.arn
 }
 
-# Lambda Functions
 resource "aws_lambda_function" "put_egg" {
   filename      = "lambda/put_egg.zip"
   function_name = "eggcarton_put_egg"
@@ -220,6 +219,19 @@ resource "aws_apigatewayv2_api" "eggcarton_api" {
   }
 }
 
+# JWT Authorizer using Cognito
+resource "aws_apigatewayv2_authorizer" "cognito" {
+  api_id           = aws_apigatewayv2_api.eggcarton_api.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+  name             = "cognito-authorizer"
+
+  jwt_configuration {
+    audience = [aws_cognito_user_pool_client.eggcarton_client.id]
+    issuer   = "https://cognito-idp.${var.aws_region}.amazonaws.com/${aws_cognito_user_pool.eggcarton_pool.id}"
+  }
+}
+
 resource "aws_apigatewayv2_stage" "eggcarton_stage" {
   api_id      = aws_apigatewayv2_api.eggcarton_api.id
   name        = "dev"
@@ -250,43 +262,49 @@ resource "aws_cloudwatch_log_group" "api_gw" {
 
 # API Gateway Integrations
 resource "aws_apigatewayv2_integration" "put_egg" {
-  api_id             = aws_apigatewayv2_api.eggcarton_api.id
-  integration_type   = "AWS_PROXY"
-  integration_uri    = aws_lambda_function.put_egg.invoke_arn
+  api_id                 = aws_apigatewayv2_api.eggcarton_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.put_egg.invoke_arn
   payload_format_version = "2.0"
 }
 
 resource "aws_apigatewayv2_integration" "get_egg" {
-  api_id             = aws_apigatewayv2_api.eggcarton_api.id
-  integration_type   = "AWS_PROXY"
-  integration_uri    = aws_lambda_function.get_egg.invoke_arn
+  api_id                 = aws_apigatewayv2_api.eggcarton_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.get_egg.invoke_arn
   payload_format_version = "2.0"
 }
 
 resource "aws_apigatewayv2_integration" "break_egg" {
-  api_id             = aws_apigatewayv2_api.eggcarton_api.id
-  integration_type   = "AWS_PROXY"
-  integration_uri    = aws_lambda_function.break_egg.invoke_arn
+  api_id                 = aws_apigatewayv2_api.eggcarton_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.break_egg.invoke_arn
   payload_format_version = "2.0"
 }
 
-# API Gateway Routes
+# API Gateway Routes with Cognito Authorization
 resource "aws_apigatewayv2_route" "put_egg" {
-  api_id    = aws_apigatewayv2_api.eggcarton_api.id
-  route_key = "POST /eggs"
-  target    = "integrations/${aws_apigatewayv2_integration.put_egg.id}"
+  api_id             = aws_apigatewayv2_api.eggcarton_api.id
+  route_key          = "POST /eggs"
+  target             = "integrations/${aws_apigatewayv2_integration.put_egg.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "get_egg" {
-  api_id    = aws_apigatewayv2_api.eggcarton_api.id
-  route_key = "GET /eggs/{owner}"
-  target    = "integrations/${aws_apigatewayv2_integration.get_egg.id}"
+  api_id             = aws_apigatewayv2_api.eggcarton_api.id
+  route_key          = "GET /eggs/{owner}"
+  target             = "integrations/${aws_apigatewayv2_integration.get_egg.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "break_egg" {
-  api_id    = aws_apigatewayv2_api.eggcarton_api.id
-  route_key = "DELETE /eggs/{owner}/{secretId}"
-  target    = "integrations/${aws_apigatewayv2_integration.break_egg.id}"
+  api_id             = aws_apigatewayv2_api.eggcarton_api.id
+  route_key          = "DELETE /eggs/{owner}/{secretId}"
+  target             = "integrations/${aws_apigatewayv2_integration.break_egg.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 # Lambda Permissions for API Gateway
