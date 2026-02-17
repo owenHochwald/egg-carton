@@ -2,10 +2,12 @@ package api
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 // Client represents the API client for Lambda functions
@@ -39,59 +41,74 @@ type GetEggResponse struct {
 	CreatedAt string `json:"created_at"`
 }
 
-// TODO: Implement PutEgg
+// GetEggsResponse represents the response containing multiple secrets
+type GetEggsResponse struct {
+	Eggs []GetEggResponse `json:"eggs"`
+}
+
 // Should call PUT /eggs endpoint to store a secret
 func (c *Client) PutEgg(owner, key, value string) error {
-	// TODO:
-	// 1. Build request body with owner, secret_id, plaintext
-	// 2. Marshal to JSON
-	// 3. Create PUT request to {baseURL}/eggs
-	// 4. Add Authorization: Bearer {token} header
-	// 5. Execute request
-	// 6. Check status code (200 = success)
-	// 7. Return error if failed
-
-	reqBody := PutEggRequest{
+	request := PutEggRequest{
 		Owner:     owner,
 		SecretID:  key,
 		Plaintext: value,
 	}
 
-	_ = reqBody
-	_ = json.Marshal
-	_ = bytes.NewBuffer
+	data, err := json.Marshal(request)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
 
-	return fmt.Errorf("not implemented")
+	req, err := c.doRequest("PUT", "/eggs", bytes.NewBuffer(data))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	defer req.Body.Close()
+
+	if req.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(req.Body)
+		return fmt.Errorf("failed to put egg (status %d) %s", req.StatusCode, body)
+
+	}
+	return nil
 }
 
-// TODO: Implement GetEgg
-// Should call GET /eggs/{owner} endpoint to retrieve a secret
-func (c *Client) GetEgg(owner string) (string, error) {
-	// TODO:
-	// 1. Create GET request to {baseURL}/eggs/{owner}
-	// 2. Add Authorization: Bearer {token} header
-	// 3. Execute request
-	// 4. Check status code (200 = success, 404 = not found)
-	// 5. Parse JSON response into GetEggResponse
-	// 6. Return the plaintext value
+// GetEgg retrieves all secrets for an owner
+func (c *Client) GetEgg(owner string) ([]GetEggResponse, error) {
+	resp, err := c.doRequest("GET", fmt.Sprintf("/eggs/%s", owner), nil)
 
-	_ = io.ReadAll
-	_ = json.Unmarshal
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	defer resp.Body.Close()
 
-	return "", fmt.Errorf("not implemented")
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("failed to get egg (status %d) %s", resp.StatusCode, body)
+	}
+
+	var response GetEggsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return response.Eggs, nil
 }
 
-// TODO: Implement BreakEgg
 // Should call DELETE /eggs/{owner} endpoint to delete a secret
 func (c *Client) BreakEgg(owner string) error {
-	// TODO:
-	// 1. Create DELETE request to {baseURL}/eggs/{owner}
-	// 2. Add Authorization: Bearer {token} header
-	// 3. Execute request
-	// 4. Check status code (200 = success, 404 = not found)
-	// 5. Return error if failed
+	resp, err := c.doRequest("DELETE", fmt.Sprintf("/eggs/%s", owner), nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	defer resp.Body.Close()
 
-	return fmt.Errorf("not implemented")
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("failed to break egg (status %d) %s", resp.StatusCode, body)
+	}
+
+	return nil
 }
 
 // TODO (Optional for EC-14): Implement ListEggs
@@ -105,20 +122,36 @@ func (c *Client) ListEggs(owner string) (map[string]string, error) {
 	return nil, fmt.Errorf("not implemented - may need new Lambda endpoint")
 }
 
-// TODO: Implement ExtractOwnerFromToken
 // Should decode JWT and extract the 'sub' claim (user ID)
 func ExtractOwnerFromToken(accessToken string) (string, error) {
-	// TODO:
-	// 1. JWT has 3 parts separated by '.'
-	// 2. Second part is the payload (base64url encoded JSON)
-	// 3. Decode it and extract 'sub' claim
+	parts := strings.Split(accessToken, ".")
 
-	// Hint: Use strings.Split and base64.RawURLEncoding
+	if len(parts) != 3 {
+		return "", fmt.Errorf("invalid JWT token format")
+	}
 
-	return "", fmt.Errorf("not implemented")
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+
+	if err != nil {
+		return "", fmt.Errorf("failed to decode JWT payload: %w", err)
+	}
+
+	var claims struct {
+		Sub string `json:"sub"`
+	}
+
+	if err = json.Unmarshal(payload, &claims); err != nil {
+		return "", fmt.Errorf("failed to parse JWT claims: %w", err)
+	}
+
+	if claims.Sub == "" {
+		return "", fmt.Errorf("sub claim not found in token")
+	}
+
+	return claims.Sub, nil
 }
 
-// Helper function to make authenticated requests
+// function to make authenticated requests
 func (c *Client) doRequest(method, path string, body io.Reader) (*http.Response, error) {
 	url := c.baseURL + path
 	req, err := http.NewRequest(method, url, body)
