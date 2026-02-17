@@ -21,25 +21,17 @@ type TokenResponse struct {
 	TokenType    string `json:"token_type"`
 }
 
-// TODO: Implement ExchangeCodeForTokens
-// Should exchange the authorization code for JWT tokens
+// ExchangeCodeForTokens exchanges the authorization code for JWT tokens
 func ExchangeCodeForTokens(tokenURL, clientID, code, redirectURI, codeVerifier string) (*config.TokenData, error) {
-	// TODO:
-	// 1. Build form data with:
-	//    - grant_type=authorization_code
-	//    - client_id
-	//    - code (authorization code from callback)
-	//    - redirect_uri
-	//    - code_verifier (from PKCE)
-	// 2. Make POST request to token endpoint
-	// 3. Parse JSON response into TokenResponse
-	// 4. Convert to config.TokenData with IssuedAt timestamp
-	// 5. Return error if token exchange fails
-
+	// Build form data for token exchange
 	data := url.Values{}
 	data.Set("grant_type", "authorization_code")
-	// TODO: Set other fields
+	data.Set("client_id", clientID)
+	data.Set("code", code)
+	data.Set("redirect_uri", redirectURI)
+	data.Set("code_verifier", codeVerifier)
 
+	// Create POST request
 	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(data.Encode()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -47,31 +39,90 @@ func ExchangeCodeForTokens(tokenURL, clientID, code, redirectURI, codeVerifier s
 
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	// TODO: Execute request
-	// TODO: Parse response
+	// Execute request
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to exchange code: %w", err)
+	}
+	defer resp.Body.Close()
 
-	_ = io.ReadAll
-	_ = json.Unmarshal
-	_ = time.Now().Unix()
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
 
-	return nil, fmt.Errorf("not implemented")
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("token exchange failed (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	// Parse JSON response
+	var tokenResp TokenResponse
+	if err := json.Unmarshal(body, &tokenResp); err != nil {
+		return nil, fmt.Errorf("failed to parse token response: %w", err)
+	}
+
+	// Convert to TokenData with issued timestamp
+	return &config.TokenData{
+		AccessToken:  tokenResp.AccessToken,
+		IDToken:      tokenResp.IDToken,
+		RefreshToken: tokenResp.RefreshToken,
+		ExpiresIn:    tokenResp.ExpiresIn,
+		TokenType:    tokenResp.TokenType,
+		IssuedAt:     time.Now().Unix(),
+	}, nil
 }
 
-// TODO: Implement RefreshAccessToken
-// Should refresh an expired access token using the refresh token
+// RefreshAccessToken refreshes an expired access token using the refresh token
 func RefreshAccessToken(tokenURL, clientID, refreshToken string) (*config.TokenData, error) {
-	// TODO:
-	// 1. Build form data with:
-	//    - grant_type=refresh_token
-	//    - client_id
-	//    - refresh_token
-	// 2. Make POST request to token endpoint
-	// 3. Parse JSON response
-	// 4. Return new TokenData
-
+	// Build form data for token refresh
 	data := url.Values{}
 	data.Set("grant_type", "refresh_token")
-	// TODO: Set other fields
+	data.Set("client_id", clientID)
+	data.Set("refresh_token", refreshToken)
 
-	return nil, fmt.Errorf("not implemented")
+	// Create POST request
+	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	// Execute request
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to refresh token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("token refresh failed (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	// Parse JSON response
+	var tokenResp TokenResponse
+	if err := json.Unmarshal(body, &tokenResp); err != nil {
+		return nil, fmt.Errorf("failed to parse token response: %w", err)
+	}
+
+	// Convert to TokenData with issued timestamp
+	return &config.TokenData{
+		AccessToken:  tokenResp.AccessToken,
+		IDToken:      tokenResp.IDToken,
+		RefreshToken: tokenResp.RefreshToken,
+		ExpiresIn:    tokenResp.ExpiresIn,
+		TokenType:    tokenResp.TokenType,
+		IssuedAt:     time.Now().Unix(),
+	}, nil
 }
