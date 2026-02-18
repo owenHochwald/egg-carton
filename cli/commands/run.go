@@ -12,16 +12,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// RunCmd represents the run command
+// RunCmd represents the hatch command (alias: run)
 var RunCmd = &cobra.Command{
-	Use:   "run -- [command]",
-	Short: "Inject secrets and run a command",
+	Use:     "hatch -- [command]",
+	Aliases: []string{"run"},
+	Short:   "Inject secrets and run a command (hatch your eggs)",
 	Long: `Fetch all secrets, set them as environment variables, and execute a command.
 	
 Example:
-  egg run -- go run main.go
-  egg run -- npm start
-  egg run -- ./my-script.sh`,
+  egg hatch -- go run main.go
+  egg hatch -- npm start
+  egg hatch -- ./my-script.sh`,
 	RunE: runRun,
 	// DisableFlagParsing allows passing flags to the subprocess
 	DisableFlagParsing: true,
@@ -84,7 +85,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 	}
 
 	if dashIndex == -1 || dashIndex == len(args)-1 {
-		return fmt.Errorf("usage: egg run -- <command> [args...]")
+		return fmt.Errorf("usage: egg hatch -- <command> [args...]")
 	}
 
 	// 8. Extract command and arguments after "--"
@@ -105,7 +106,7 @@ func runRun(cmd *cobra.Command, args []string) error {
 		mergedEnv = append(mergedEnv, fmt.Sprintf("%s=%s", key, value))
 	}
 
-	fmt.Printf("🚀 Running command with %d secret(s) injected...\n", len(secretEnvVars))
+	fmt.Printf("� Hatching %d egg(s) into your environment...\n", len(secretEnvVars))
 	for key := range secretEnvVars {
 		fmt.Printf("   ✓ %s\n", key)
 	}

@@ -83,7 +83,7 @@ func (r EggRepository) PutEgg(ctx context.Context, egg Egg) error {
 		log.Printf("Couldn't marshal egg to DynamoDB item. Here's why: %v\n", err)
 		return err
 	}
-	
+
 	_, err = r.DynamoDbClient.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String(r.TableName),
 		Item:      item,

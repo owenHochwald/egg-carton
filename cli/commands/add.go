@@ -9,20 +9,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// AddCmd represents the add command
+// AddCmd represents the lay command (alias: add)
 var AddCmd = &cobra.Command{
-	Use:   "add [key] [value]",
-	Short: "Store a secret",
-	Long:  `Encrypt and store a secret in your EggCarton vault.`,
-	Args:  cobra.ExactArgs(2),
-	RunE:  runAdd,
+	Use:     "lay [key] [value]",
+	Aliases: []string{"add"},
+	Short:   "Store a secret (lay an egg)",
+	Long:    `Encrypt and store a secret in your EggCarton vault.`,
+	Args:    cobra.ExactArgs(2),
+	RunE:    runAdd,
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
 	key := args[0]
 	value := args[1]
 
-	fmt.Printf("🥚 Adding secret: %s\n", key)
+	fmt.Printf("🐔 Laying egg: %s\n", key)
 
 	config, err := config.LoadConfig()
 	if err != nil {
@@ -60,11 +61,11 @@ func runAdd(cmd *cobra.Command, args []string) error {
 
 	// 6. Call PutEgg(owner, key, value)
 	if err := client.PutEgg(owner, key, value); err != nil {
-		return fmt.Errorf("failed to put egg: %w", err)
+		return fmt.Errorf("failed to lay egg: %w", err)
 	}
 
 	// 7. Print success message
-	fmt.Printf("✅ Successfully added secret: %s\n", key)
+	fmt.Printf("✅ Successfully laid egg: %s\n", key)
 
 	return nil
 }

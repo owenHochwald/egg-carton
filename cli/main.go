@@ -11,8 +11,15 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "egg",
 	Short: "🥚 EggCarton - Secure secret management CLI",
-	Long: `EggCarton is a secure CLI tool for managing secrets.
-	
+	Long: `EggCarton is a secure CLI tool for managing secrets with an egg theme!
+
+Commands:
+  🔐 login           - Authenticate with OAuth
+  🐔 lay (add)       - Store a secret (lay an egg)
+  🥚 get             - Retrieve secrets from your vault
+  🐣 hatch (run)     - Inject secrets and run a command (hatch your eggs)
+  💥 break           - Delete a secret from your vault
+
 It uses AWS Lambda, DynamoDB, and KMS for encryption,
 with Cognito authentication via OAuth PKCE flow.`,
 }

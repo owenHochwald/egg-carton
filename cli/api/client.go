@@ -68,7 +68,7 @@ func (c *Client) PutEgg(owner, key, value string) error {
 		body, _ := io.ReadAll(req.Body)
 		return fmt.Errorf("failed to put egg (status %d) %s", req.StatusCode, body)
 	}
-	
+
 	return nil
 }
 
