@@ -28,7 +28,6 @@ func NewClient(baseURL, accessToken string) *Client {
 
 // PutEggRequest represents the request body for storing a secret
 type PutEggRequest struct {
-	Owner     string `json:"owner"`
 	SecretID  string `json:"secret_id"`
 	Plaintext string `json:"plaintext"`
 }
@@ -46,10 +45,10 @@ type GetEggsResponse struct {
 	Eggs []GetEggResponse `json:"eggs"`
 }
 
-// Should call PUT /eggs endpoint to store a secret
+// PutEgg stores a secret by calling POST /eggs endpoint
+// Note: owner is extracted from the JWT token by the Lambda function
 func (c *Client) PutEgg(owner, key, value string) error {
 	request := PutEggRequest{
-		Owner:     owner,
 		SecretID:  key,
 		Plaintext: value,
 	}
@@ -59,17 +58,17 @@ func (c *Client) PutEgg(owner, key, value string) error {
 		return fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := c.doRequest("PUT", "/eggs", bytes.NewBuffer(data))
+	req, err := c.doRequest("POST", "/eggs", bytes.NewBuffer(data))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 	defer req.Body.Close()
 
-	if req.StatusCode != http.StatusOK {
+	if req.StatusCode != http.StatusOK && req.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(req.Body)
 		return fmt.Errorf("failed to put egg (status %d) %s", req.StatusCode, body)
-
 	}
+	
 	return nil
 }
 
@@ -95,9 +94,9 @@ func (c *Client) GetEgg(owner string) ([]GetEggResponse, error) {
 	return response.Eggs, nil
 }
 
-// Should call DELETE /eggs/{owner} endpoint to delete a secret
-func (c *Client) BreakEgg(owner string) error {
-	resp, err := c.doRequest("DELETE", fmt.Sprintf("/eggs/%s", owner), nil)
+// BreakEgg deletes a specific secret
+func (c *Client) BreakEgg(owner, secretID string) error {
+	resp, err := c.doRequest("DELETE", fmt.Sprintf("/eggs/%s/%s", owner, secretID), nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
