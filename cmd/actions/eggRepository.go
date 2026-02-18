@@ -77,18 +77,19 @@ func (r EggRepository) GetAllEggs(ctx context.Context, owner string) ([]Egg, err
 }
 
 func (r EggRepository) PutEgg(ctx context.Context, egg Egg) error {
-	params, err := attributevalue.MarshalList([]interface{}{egg.Owner, egg.SecretID, egg.Ciphertext, egg.EncryptedDataKey, egg.CreatedAt})
+	// Use standard PutItem instead of PartiQL for proper upsert behavior
+	item, err := attributevalue.MarshalMap(egg)
 	if err != nil {
-		panic(err)
+		log.Printf("Couldn't marshal egg to DynamoDB item. Here's why: %v\n", err)
+		return err
 	}
-	_, err = r.DynamoDbClient.ExecuteStatement(ctx, &dynamodb.ExecuteStatementInput{
-		Statement: aws.String(
-			fmt.Sprintf("INSERT INTO \"%v\" VALUE {'Owner': ?, 'SecretID': ?, 'Ciphertext': ?, 'EncryptedDataKey': ?, 'CreatedAt': ?}",
-				r.TableName)),
-		Parameters: params,
+	
+	_, err = r.DynamoDbClient.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(r.TableName),
+		Item:      item,
 	})
 	if err != nil {
-		log.Printf("Couldn't put an item with PartiQL. Here's why: %v\n", err)
+		log.Printf("Couldn't put an item. Here's why: %v\n", err)
 	}
 	return err
 }

@@ -118,9 +118,15 @@ func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (event
 
 	// Store in DynamoDB
 	if err := eggRepo.PutEgg(ctx, egg); err != nil {
+		println("DynamoDB Error:", err.Error())
+		errorMsg := map[string]string{
+			"error":   "Failed to store egg",
+			"details": err.Error(),
+		}
+		errorBody, _ := json.Marshal(errorMsg)
 		return events.APIGatewayV2HTTPResponse{
 			StatusCode: 500,
-			Body:       `{"error": "Failed to store egg"}`,
+			Body:       string(errorBody),
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}, nil
 	}
