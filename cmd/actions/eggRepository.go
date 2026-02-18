@@ -12,6 +12,7 @@ import (
 
 type EggActions interface {
 	GetEgg(ctx context.Context, owner string) (Egg, error)
+	GetAllEggs(ctx context.Context, owner string) ([]Egg, error)
 	PutEgg(ctx context.Context, egg Egg) error
 	BreakEgg(ctx context.Context, owner, secretID string) error
 }
@@ -48,19 +49,47 @@ func (r EggRepository) GetEgg(ctx context.Context, owner string) (Egg, error) {
 	return egg, err
 }
 
-func (r EggRepository) PutEgg(ctx context.Context, egg Egg) error {
-	params, err := attributevalue.MarshalList([]interface{}{egg.Owner, egg.SecretID, egg.Ciphertext, egg.EncryptedDataKey, egg.CreatedAt})
+func (r EggRepository) GetAllEggs(ctx context.Context, owner string) ([]Egg, error) {
+	var eggs []Egg
+	params, err := attributevalue.MarshalList([]interface{}{owner})
 	if err != nil {
 		panic(err)
 	}
-	_, err = r.DynamoDbClient.ExecuteStatement(ctx, &dynamodb.ExecuteStatementInput{
+	response, err := r.DynamoDbClient.ExecuteStatement(ctx, &dynamodb.ExecuteStatementInput{
 		Statement: aws.String(
-			fmt.Sprintf("INSERT INTO \"%v\" VALUE {'Owner': ?, 'SecretID': ?, 'Ciphertext': ?, 'EncryptedDataKey': ?, 'CreatedAt': ?}",
+			fmt.Sprintf("SELECT * FROM \"%v\" WHERE Owner=?",
 				r.TableName)),
 		Parameters: params,
 	})
 	if err != nil {
-		log.Printf("Couldn't put an item with PartiQL. Here's why: %v\n", err)
+		log.Printf("Couldn't get eggs for %v. Here's why: %v\n", owner, err)
+		return eggs, err
+	}
+
+	// Unmarshal all items
+	err = attributevalue.UnmarshalListOfMaps(response.Items, &eggs)
+	if err != nil {
+		log.Printf("Couldn't unmarshal response. Here's why: %v\n", err)
+		return eggs, err
+	}
+
+	return eggs, nil
+}
+
+func (r EggRepository) PutEgg(ctx context.Context, egg Egg) error {
+	// Use standard PutItem instead of PartiQL for proper upsert behavior
+	item, err := attributevalue.MarshalMap(egg)
+	if err != nil {
+		log.Printf("Couldn't marshal egg to DynamoDB item. Here's why: %v\n", err)
+		return err
+	}
+
+	_, err = r.DynamoDbClient.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: aws.String(r.TableName),
+		Item:      item,
+	})
+	if err != nil {
+		log.Printf("Couldn't put an item. Here's why: %v\n", err)
 	}
 	return err
 }

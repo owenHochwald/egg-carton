@@ -13,33 +13,43 @@ type CallbackResult struct {
 	Error string
 }
 
-// TODO: Implement StartCallbackServer
 // Should start a local HTTP server to receive the OAuth callback
 func StartCallbackServer(ctx context.Context) (string, error) {
-	// TODO:
-	// 1. Create a channel to receive the authorization code
-	// 2. Create HTTP handler for /callback route
-	// 3. Extract 'code' or 'error' from query parameters
-	// 4. Send code through channel
-	// 5. Respond with success/error HTML page
-	// 6. Start server on localhost:8080
-	// 7. Use context to gracefully shutdown after receiving code
-	// 8. Return the authorization code
-
 	resultChan := make(chan CallbackResult, 1)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Extract code from query params
-		// r.URL.Query().Get("code")
-		// r.URL.Query().Get("error")
+		// Extract code and error from query params
+		code := r.URL.Query().Get("code")
+		errParam := r.URL.Query().Get("error")
 
-		// TODO: Send HTML response
+		// Send friendly HTML response
 		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprintf(w, "<h1>Authentication successful!</h1><p>You can close this window.</p>")
+		if code != "" {
+			fmt.Fprintf(w, `
+				<html>
+				<head><title>Authentication Successful</title></head>
+				<body style="font-family: Arial; text-align: center; padding: 50px;">
+					<h1>✅ Authentication Successful!</h1>
+					<p>You can close this window and return to the terminal.</p>
+				</body>
+				</html>
+			`)
+		} else {
+			fmt.Fprintf(w, `
+				<html>
+				<head><title>Authentication Failed</title></head>
+				<body style="font-family: Arial; text-align: center; padding: 50px;">
+					<h1>❌ Authentication Failed</h1>
+					<p>Error: %s</p>
+					<p>Please try again.</p>
+				</body>
+				</html>
+			`, errParam)
+		}
 
-		// TODO: Send result through channel
-		resultChan <- CallbackResult{Code: "REPLACE_WITH_ACTUAL_CODE"}
+		// Send result through channel (non-blocking because it's buffered)
+		resultChan <- CallbackResult{Code: code, Error: errParam}
 	})
 
 	server := &http.Server{
@@ -47,12 +57,38 @@ func StartCallbackServer(ctx context.Context) (string, error) {
 		Handler: mux,
 	}
 
-	// TODO: Start server in goroutine
-	// TODO: Wait for result or timeout
-	// TODO: Shutdown server gracefully
+	// Start server in a goroutine so it doesn't block
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Printf("HTTP server error: %v\n", err)
+		}
+	}()
 
-	_ = server
-	_ = time.After(5 * time.Minute) // 5 minute timeout
+	var result CallbackResult
+	select {
+	case result = <-resultChan:
+		// Got callback! Shutdown server gracefully
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			fmt.Printf("Server shutdown error: %v\n", err)
+		}
 
-	return "", fmt.Errorf("not implemented")
+	case <-ctx.Done():
+		// Timeout or cancellation
+		server.Close() // Force close
+		return "", fmt.Errorf("authentication timeout or cancelled")
+	}
+
+	// Check if we got an error from OAuth
+	if result.Error != "" {
+		return "", fmt.Errorf("authentication failed: %s", result.Error)
+	}
+
+	// Check if we got a code
+	if result.Code == "" {
+		return "", fmt.Errorf("no authorization code received")
+	}
+
+	return result.Code, nil
 }

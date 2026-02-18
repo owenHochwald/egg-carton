@@ -1,10 +1,12 @@
 package config
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -120,4 +122,48 @@ func (c *Config) GetAuthorizationURL() string {
 // Returns the token exchange endpoint
 func (c *Config) GetTokenURL() string {
 	return fmt.Sprintf("https://%s/oauth2/token", c.CognitoConfig.Domain)
+}
+
+// Returns the API base URL
+func (c *Config) GetAPIBaseURL() string {
+	return c.APIEndpoint
+}
+
+// GetOwner extracts the owner (user ID) from the access token
+func (c *Config) GetOwner() (string, error) {
+	tokens, err := c.LoadTokens()
+	if err != nil {
+		return "", fmt.Errorf("failed to load tokens: %w", err)
+	}
+
+	// Extract owner (sub claim) from the access token JWT
+	return extractOwnerFromToken(tokens.AccessToken)
+}
+
+// extractOwnerFromToken decodes JWT and extracts the 'sub' claim (user ID)
+func extractOwnerFromToken(accessToken string) (string, error) {
+	parts := strings.Split(accessToken, ".")
+
+	if len(parts) != 3 {
+		return "", fmt.Errorf("invalid JWT token format")
+	}
+
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", fmt.Errorf("failed to decode JWT payload: %w", err)
+	}
+
+	var claims struct {
+		Sub string `json:"sub"`
+	}
+
+	if err = json.Unmarshal(payload, &claims); err != nil {
+		return "", fmt.Errorf("failed to parse JWT claims: %w", err)
+	}
+
+	if claims.Sub == "" {
+		return "", fmt.Errorf("sub claim not found in token")
+	}
+
+	return claims.Sub, nil
 }

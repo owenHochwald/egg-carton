@@ -3,34 +3,69 @@ package commands
 import (
 	"fmt"
 
+	"github.com/owenHochwald/egg-carton/cli/api"
+	"github.com/owenHochwald/egg-carton/cli/auth"
+	"github.com/owenHochwald/egg-carton/cli/config"
 	"github.com/spf13/cobra"
 )
 
-// AddCmd represents the add command
+// AddCmd represents the lay command (alias: add)
 var AddCmd = &cobra.Command{
-	Use:   "add [key] [value]",
-	Short: "Store a secret",
-	Long:  `Encrypt and store a secret in your EggCarton vault.`,
-	Args:  cobra.ExactArgs(2),
-	RunE:  runAdd,
+	Use:     "lay [key] [value]",
+	Aliases: []string{"add"},
+	Short:   "Store a secret (lay an egg)",
+	Long:    `Encrypt and store a secret in your EggCarton vault.`,
+	Args:    cobra.ExactArgs(2),
+	RunE:    runAdd,
 }
 
 func runAdd(cmd *cobra.Command, args []string) error {
 	key := args[0]
 	value := args[1]
 
-	fmt.Printf("🥚 Adding secret: %s\n", key)
+	fmt.Printf("🐔 Laying egg: %s\n", key)
 
-	// TODO: Implement add logic
-	// 1. Load config
-	// 2. Load tokens (check if logged in)
+	config, err := config.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	tokens, err := config.LoadTokens()
+	if err != nil {
+		return fmt.Errorf("failed to load tokens: %w", err)
+	}
 	// 3. Check if token is valid (refresh if needed)
-	// 4. Create API client
-	// 5. Call PutEgg(key, value)
-	// 6. Print success message
+	if tokens == nil {
+		return fmt.Errorf("you are not logged in. Please run 'egg login' first")
+	}
+	if !tokens.IsTokenValid() {
+		fmt.Println("⏰ Token expired, refreshing...")
+		newTokens, err := auth.RefreshAccessToken(config.GetTokenURL(), config.CognitoConfig.ClientID, tokens.RefreshToken)
+		if err != nil {
+			return fmt.Errorf("failed to refresh token: %w", err)
+		}
+		if err := config.SaveTokens(newTokens); err != nil {
+			return fmt.Errorf("failed to save refreshed tokens: %w", err)
+		}
+		tokens = newTokens
+	}
 
-	_ = key
-	_ = value
+	// 4. Extract owner from token
+	owner, err := config.GetOwner()
+	if err != nil {
+		return fmt.Errorf("failed to extract owner from token: %w", err)
+	}
 
-	return fmt.Errorf("not implemented - see api/client.go")
+	// 5. Create API client
+	client := api.NewClient(config.GetAPIBaseURL(), tokens.AccessToken)
+
+	// 6. Call PutEgg(owner, key, value)
+	if err := client.PutEgg(owner, key, value); err != nil {
+		return fmt.Errorf("failed to lay egg: %w", err)
+	}
+
+	// 7. Print success message
+	fmt.Printf("✅ Successfully laid egg: %s\n", key)
+
+	return nil
 }

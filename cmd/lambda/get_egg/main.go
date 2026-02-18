@@ -21,6 +21,10 @@ type GetEggResponse struct {
 	CreatedAt string `json:"created_at"`
 }
 
+type GetEggsResponse struct {
+	Eggs []GetEggResponse `json:"eggs"`
+}
+
 var (
 	eggRepo   actions.EggRepository
 	kmsClient *kms.Client
@@ -76,30 +80,12 @@ func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (event
 		}, nil
 	}
 
-	// Retrieve the egg from DynamoDB
-	egg, err := eggRepo.GetEgg(ctx, owner)
+	// Retrieve all eggs from DynamoDB for this owner
+	eggs, err := eggRepo.GetAllEggs(ctx, owner)
 	if err != nil {
 		println("DynamoDB Error:", err.Error())
 		errorMsg := map[string]string{
-			"error":   "Egg not found",
-			"details": err.Error(),
-		}
-		errorBody, _ := json.Marshal(errorMsg)
-		return events.APIGatewayV2HTTPResponse{
-			StatusCode: 404,
-			Body:       string(errorBody),
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}, nil
-	}
-
-	// Decrypt the data key using KMS
-	decryptResp, err := kmsClient.Decrypt(ctx, &kms.DecryptInput{
-		CiphertextBlob: egg.EncryptedDataKey,
-	})
-	if err != nil {
-		println("KMS Decrypt Error:", err.Error())
-		errorMsg := map[string]string{
-			"error":   "Failed to decrypt data key",
+			"error":   "Failed to retrieve eggs",
 			"details": err.Error(),
 		}
 		errorBody, _ := json.Marshal(errorMsg)
@@ -110,30 +96,40 @@ func handler(ctx context.Context, request events.APIGatewayV2HTTPRequest) (event
 		}, nil
 	}
 
-	// Decrypt the ciphertext using AES-256-GCM with the plaintext data key
-	plaintextBytes, err := crypto.DecryptWithAESGCM(egg.Ciphertext, decryptResp.Plaintext)
-	if err != nil {
-		println("AES Decrypt Error:", err.Error())
-		errorMsg := map[string]string{
-			"error":   "Failed to decrypt secret",
-			"details": err.Error(),
+	// Decrypt each egg
+	var decryptedEggs []GetEggResponse
+	for _, egg := range eggs {
+		// Decrypt the data key using KMS
+		decryptResp, err := kmsClient.Decrypt(ctx, &kms.DecryptInput{
+			CiphertextBlob: egg.EncryptedDataKey,
+		})
+		if err != nil {
+			println("KMS Decrypt Error for SecretID", egg.SecretID, ":", err.Error())
+			// Skip this egg but continue with others
+			continue
 		}
-		errorBody, _ := json.Marshal(errorMsg)
-		return events.APIGatewayV2HTTPResponse{
-			StatusCode: 500,
-			Body:       string(errorBody),
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}, nil
+
+		// Decrypt the ciphertext using AES-256-GCM with the plaintext data key
+		plaintextBytes, err := crypto.DecryptWithAESGCM(egg.Ciphertext, decryptResp.Plaintext)
+		if err != nil {
+			println("AES Decrypt Error for SecretID", egg.SecretID, ":", err.Error())
+			// Skip this egg but continue with others
+			continue
+		}
+
+		plaintext := string(plaintextBytes)
+
+		decryptedEggs = append(decryptedEggs, GetEggResponse{
+			Owner:     egg.Owner,
+			SecretID:  egg.SecretID,
+			Plaintext: plaintext,
+			CreatedAt: egg.CreatedAt,
+		})
 	}
 
-	plaintext := string(plaintextBytes)
-
-	// Return the decrypted egg
-	response := GetEggResponse{
-		Owner:     egg.Owner,
-		SecretID:  egg.SecretID,
-		Plaintext: plaintext,
-		CreatedAt: egg.CreatedAt,
+	// Return all decrypted eggs
+	response := GetEggsResponse{
+		Eggs: decryptedEggs,
 	}
 	responseBody, _ := json.Marshal(response)
 
